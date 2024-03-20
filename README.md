@@ -1,2 +1,15 @@
-# AKARI
- Spotify Assistant to be able to play without opening spotify 
+         _                   _              _                   _            _     
+        / /\                /\_\           / /\                /\ \         /\ \   
+       / /  \              / / /  _       / /  \              /  \ \        \ \ \  
+      / / /\ \            / / /  /\_\    / / /\ \            / /\ \ \       /\ \_\ 
+     / / /\ \ \          / / /__/ / /   / / /\ \ \          / / /\ \_\     / /\/_/ 
+    / / /  \ \ \        / /\_____/ /   / / /  \ \ \        / / /_/ / /    / / /    
+   / / /___/ /\ \      / /\_______/   / / /___/ /\ \      / / /__\/ /    / / /     
+  / / /_____/ /\ \    / / /\ \ \     / / /_____/ /\ \    / / /_____/    / / /      
+ / /_________/\ \ \  / / /  \ \ \   / /_________/\ \ \  / / /\ \ \  ___/ / /__     
+/ / /_       __\ \_\/ / /    \ \ \ / / /_       __\ \_\/ / /  \ \ \/\__\/_/___\    
+\_\___\     /____/_/\/_/      \_\_\\_\___\     /____/_/\/_/    \_\/\/_________/    
+    
+
+My personal Spotify Assistant to be able to play without opening Spotify 
+It uses Spotify API to avoid calling the Spotify App to the front and disrupting your game 
