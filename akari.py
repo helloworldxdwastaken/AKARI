@@ -5,6 +5,7 @@ import time
 import logging
 import configparser
 import json
+import readchar
 import speech_recognition as sr
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
