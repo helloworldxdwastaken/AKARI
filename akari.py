@@ -8,19 +8,8 @@ import inquirer  # For interactive menu
 from pynput import keyboard  # For keyboard event handling
 import threading
 
-# Define your constants here
-CLIENT_ID = 'your_client_id'
-CLIENT_SECRET = 'your_client_secret'
-REDIRECT_URI = 'http://localhost:8888/callback'
-
 # Set the default trigger key (configurable)
 TRIGGER_KEY = 't'  # Default trigger key is 'T'
-
-# Create a single instance of Spotify
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
-                                               client_secret=CLIENT_SECRET,
-                                               redirect_uri=REDIRECT_URI,
-                                               scope='user-modify-playback-state user-read-playback-state user-read-currently-playing'))
 
 def print_headline():
     ascii_art = f"""
@@ -41,7 +30,47 @@ def print_headline():
 
 print_headline()
 
-def select_device():
+def get_spotify_credentials():
+    # Determine the path to the credentials file
+    credentials_path = os.path.join(os.path.expanduser("~"), 'Documents', 'akaricredentials')
+
+    # Check if the credentials file exists
+    if os.path.exists(credentials_path):
+        # Read the credentials from the file
+        with open(credentials_path, 'r') as cred_file:
+            lines = cred_file.readlines()
+            credentials = {}
+            for line in lines:
+                key, value = line.strip().split('=', 1)
+                credentials[key] = value
+        CLIENT_ID = credentials.get('CLIENT_ID')
+        CLIENT_SECRET = credentials.get('CLIENT_SECRET')
+        if CLIENT_ID and CLIENT_SECRET:
+            print("Spotify credentials loaded from file.")
+            return CLIENT_ID, CLIENT_SECRET
+        else:
+            print("Credentials file is missing CLIENT_ID or CLIENT_SECRET.")
+    else:
+        print("Spotify credentials not found. Please enter them now.")
+
+    # Prompt the user for credentials
+    questions = [
+        inquirer.Text('client_id', message="Enter your Spotify Client ID"),
+        inquirer.Text('client_secret', message="Enter your Spotify Client Secret"),
+    ]
+    answers = inquirer.prompt(questions)
+    CLIENT_ID = answers['client_id']
+    CLIENT_SECRET = answers['client_secret']
+
+    # Save the credentials to the file
+    with open(credentials_path, 'w') as cred_file:
+        cred_file.write(f"CLIENT_ID={CLIENT_ID}\n")
+        cred_file.write(f"CLIENT_SECRET={CLIENT_SECRET}\n")
+    print(f"Credentials saved to {credentials_path}")
+
+    return CLIENT_ID, CLIENT_SECRET
+
+def select_device(sp):
     try:
         devices = sp.devices()
         device_list = devices['devices']
@@ -72,9 +101,8 @@ def select_device():
         print(f"Error retrieving devices: {e}")
         return None
 
-def handle_user_interaction(selected_device_id):
+def handle_user_interaction(sp, selected_device_id):
     recognizer = sr.Recognizer()
-    volume = 50  # Default volume
     listening = False  # Flag to indicate if we're currently listening
     audio_thread = None  # Thread for audio listening
 
@@ -85,7 +113,7 @@ def handle_user_interaction(selected_device_id):
                 listening = True
                 print(f"'{TRIGGER_KEY.upper()}' key pressed. Starting to listen...")
                 # Start a new thread to listen for commands
-                audio_thread = threading.Thread(target=listen_for_command, args=(recognizer, selected_device_id))
+                audio_thread = threading.Thread(target=listen_for_command, args=(sp, recognizer, selected_device_id))
                 audio_thread.start()
         except AttributeError:
             pass  # Special keys (e.g., function keys) can be ignored
@@ -112,13 +140,13 @@ def handle_user_interaction(selected_device_id):
     # Keep the main thread alive
     listener.join()  # Wait for the listener thread to finish
 
-def listen_for_command(recognizer, selected_device_id):
+def listen_for_command(sp, recognizer, selected_device_id):
     with sr.Microphone() as source:
         recognizer.adjust_for_ambient_noise(source, duration=1)
         try:
             # Continuously listen until the key is released
             while True:
-                if recognizer.abort_on_phrase:
+                if getattr(recognizer, 'abort_on_phrase', False):
                     print("Listening stopped by key release.")
                     recognizer.abort_on_phrase = False  # Reset abort flag
                     break
@@ -127,7 +155,7 @@ def listen_for_command(recognizer, selected_device_id):
                 try:
                     command = recognizer.recognize_google(audio_text).lower()
                     print(f"Command recognized: {command}")
-                    process_command(command, selected_device_id)
+                    process_command(sp, command, selected_device_id)
                 except sr.UnknownValueError:
                     print("Could not understand audio.")
                 except sr.RequestError as e:
@@ -135,27 +163,27 @@ def listen_for_command(recognizer, selected_device_id):
         except sr.WaitTimeoutError:
             print("Listening timed out.")
 
-def process_command(command, selected_device_id):
+def process_command(sp, command, selected_device_id):
     if "play playlist" in command or "play my playlist" in command:
         # Extract the playlist name from the command
         playlist_name = command.replace("play playlist", "").replace("play my playlist", "").strip()
-        play_playlist_on_spotify(playlist_name, selected_device_id)
+        play_playlist_on_spotify(sp, playlist_name, selected_device_id)
     elif "play" in command:
         # Extract the song title from the command
         song_title = command.replace("play", "").strip()
-        play_song_on_spotify(song_title, selected_device_id)
+        play_song_on_spotify(sp, song_title, selected_device_id)
     elif "skip" in command or "next" in command:
-        skip_song(selected_device_id)
+        skip_song(sp, selected_device_id)
     elif "pause" in command:
-        pause_spotify(selected_device_id)
+        pause_spotify(sp, selected_device_id)
     elif "resume" in command:
-        resume_song(selected_device_id)
+        resume_song(sp, selected_device_id)
     elif "volume" in command:
-        set_volume(command, selected_device_id)
+        set_volume(sp, command, selected_device_id)
     else:
         print("Command not recognized.")
 
-def play_playlist_on_spotify(playlist_name, device_id):
+def play_playlist_on_spotify(sp, playlist_name, device_id):
     try:
         playlists = sp.current_user_playlists()
         found_playlists = [p for p in playlists['items'] if playlist_name.lower() in p['name'].lower()]
@@ -171,7 +199,7 @@ def play_playlist_on_spotify(playlist_name, device_id):
     except spotipy.SpotifyException as e:
         print(f"Error playing playlist on Spotify: {e}")
 
-def get_song_uri(song_title):
+def get_song_uri(sp, song_title):
     # Check if song_title is empty or None
     if not song_title:
         print("Error: Empty or None song title provided.")
@@ -193,8 +221,8 @@ def get_song_uri(song_title):
         print(f"Error during Spotify search: {e}")
         return None
 
-def play_song_on_spotify(song_title, device_id):
-    uri = get_song_uri(song_title)
+def play_song_on_spotify(sp, song_title, device_id):
+    uri = get_song_uri(sp, song_title)
 
     try:
         if uri:
@@ -206,14 +234,14 @@ def play_song_on_spotify(song_title, device_id):
     except spotipy.SpotifyException as e:
         print(f"Error starting playback on Spotify: {e}")
 
-def pause_spotify(device_id):
+def pause_spotify(sp, device_id):
     try:
         sp.pause_playback(device_id=device_id)
         print("Pausing Spotify...")
     except spotipy.SpotifyException as e:
         print(f"Error pausing Spotify playback: {e}")
 
-def set_volume(command, device_id):
+def set_volume(sp, command, device_id):
     words = command.split()
 
     # Check if "volume" is present in the command
@@ -242,7 +270,7 @@ def set_volume(command, device_id):
     else:
         print("Command does not contain 'volume'.")
 
-def skip_song(device_id):
+def skip_song(sp, device_id):
     try:
         current_track = sp.current_playback()
         if current_track and current_track['is_playing']:
@@ -250,11 +278,11 @@ def skip_song(device_id):
             print("Skipping to the next song...")
         else:
             print("No currently playing track. Playing a random playlist...")
-            play_random_playlist_on_spotify(device_id)
+            play_random_playlist_on_spotify(sp, device_id)
     except spotipy.SpotifyException as e:
         print(f"Error skipping song on Spotify: {e}")
 
-def play_random_playlist_on_spotify(device_id):
+def play_random_playlist_on_spotify(sp, device_id):
     try:
         playlists = sp.current_user_playlists()
         if playlists['items']:
@@ -267,7 +295,7 @@ def play_random_playlist_on_spotify(device_id):
     except spotipy.SpotifyException as e:
         print(f"Error playing random playlist on Spotify: {e}")
 
-def resume_song(device_id):
+def resume_song(sp, device_id):
     try:
         sp.start_playback(device_id=device_id)
         print("Resuming playback...")
@@ -284,11 +312,22 @@ def configure_trigger_key():
     print(f"Trigger key set to '{TRIGGER_KEY.upper()}'.")
 
 if __name__ == "__main__":
+    # Get Spotify credentials
+    CLIENT_ID, CLIENT_SECRET = get_spotify_credentials()
+
+    # Create a single instance of Spotify
+    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET,
+        redirect_uri='http://localhost:8888/callback',
+        scope='user-modify-playback-state user-read-playback-state user-read-currently-playing'
+    ))
+
     # Option to configure the trigger key
     configure_trigger_key()
 
-    selected_device_id = select_device()
+    selected_device_id = select_device(sp)
     if selected_device_id:
-        handle_user_interaction(selected_device_id)
+        handle_user_interaction(sp, selected_device_id)
     else:
         print("No device selected. Exiting.")
