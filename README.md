@@ -67,40 +67,37 @@ Ensure all necessary Python packages are installed within the virtual environmen
 Upgrade pip
 
 powershell
-Copy code
-pip install --upgrade pip
+`pip install --upgrade pip`
+
+
 Install Required Packages
-
 powershell
-Copy code
-pip install spotipy speechrecognition pyaudio inquirer pynput cryptography readchar
-Handling pyaudio Installation on Windows:
+`pip install spotipy speechrecognition pyaudio inquirer pynput cryptography readchar`
 
+Handling pyaudio Installation on Windows:
 If you encounter issues installing pyaudio via pip, follow these steps:
 
-Download the Appropriate Wheel File:
+1- Download the Appropriate Wheel File:
 
 Visit Unofficial Windows Binaries for Python Extension Packages and download the .whl file matching your Python version and system architecture (e.g., PyAudio‑0.2.13‑cp310‑cp310‑win_amd64.whl for Python 3.10, 64-bit).
 
 Install the Wheel File:
 
 powershell
-Copy code
-pip install path\to\PyAudio‑0.2.13‑cp310‑cp310‑win_amd64.whl
+
+`pip install path\to\PyAudio‑0.2.13‑cp310‑cp310‑win_amd64.whl`
+
 Replace path\to\ with the actual path where you downloaded the wheel file.
 
 Building the Executable
 With all dependencies installed, you can now build the standalone executable using PyInstaller.
 
 Ensure You Are in the Project Root Directory
-
 powershell
-
 `cd C:\Users\Tokyo\Downloads\AKARI-main\AKARI-main\`
 
 Clean Previous Builds (Optional but Recommended)
 Remove any existing build, dist folders and akari.spec file to avoid conflicts.
-
 powershell
 Copy code
 `Remove-Item -Recurse -Force .\build
