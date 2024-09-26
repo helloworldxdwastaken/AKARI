@@ -6,4 +6,4 @@ It uses Spotify API to avoid calling the Spotify App to the front and disrupting
 # Installation#
 install requirements.txt with the next command ```pip install -r requirements.txt```
 
-install Spotify APP ```https://www.spotify.com/us/download```
+install Spotify APP ```(https://www.spotify.com/us/download)```
